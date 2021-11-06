@@ -1,0 +1,427 @@
+---
+title: "bellabeat Project"
+output: html_document
+editor_options:
+  chunk_output_type: console
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction and background
+
+This is meant to be a sample starter script if you choose to use R for this case study. This is not comprehensive of everything you'll do in the case study, but should be used as a starting point if it is helpful for you.
+
+## Upload your CSV files to R
+
+Remember to upload your CSV files to your project from the relevant data source:
+
+https://www.kaggle.com/arashnic/fitbit
+
+Remember, there are many different CSV files in the dataset. We have uploaded two CSVs into the project, but you will likely want to use more than just these two CSV files.
+
+## Installing and loading common packages and libraries
+
+You can always install and load packages along the way as you may discover you need different packages after you start your analysis. If you already have some of these packages installed and loaded, you can skip those ones - or you can choose to run those specific lines of code anyway. It may take a few moments to run.
+
+```{r}
+
+library(tidyverse)
+library(janitor)
+library(lubridate)
+
+```
+
+
+# Step 3: Process
+
+Includes 
+
+- Explore and observe data 
+- Check for and treat missing or null values
+- Transform data - format data type
+- Perform preliminary statistical analysis 
+
+## Loading your CSV files
+
+Here we'll create a dataframe named 'daily_activity' and read in one of the CSV files from the dataset. Remember, you can name your dataframe something different, and you can also save your CSV file under a different name as well.
+
+```{r}
+
+daily_activity <- read_csv("dailyActivity_merged.csv")
+
+```
+
+We'll create another dataframe for the sleep data. 
+
+```{r}
+
+sleep_day <- read_csv("sleepDay_merged.csv")
+
+```
+
+
+
+## Exploring a few key tables
+
+Take a look at the daily_activity data.
+
+```{r}
+
+head(daily_activity)
+
+```
+
+Identify all the columns in the daily_activity data.
+
+```{r}
+
+colnames(daily_activity)
+
+```
+
+Take a look at the sleep_day data.
+
+```{r}
+
+head(sleep_day)
+
+```
+
+Identify all the columsn in the daily_activity data.
+
+```{r}
+
+colnames(sleep_day)
+
+```
+
+Note that both datasets have the 'Id' field - this can be used to merge the datasets.
+
+```{r}
+
+skimr::skim(daily_activity ) |> 
+  select(skim_variable,n_missing, complete_rate)
+
+```
+
+
+
+## Understanding some summary statistics
+
+How many unique participants are there in each dataframe? It looks like there may be more participants in the daily activity dataset than the sleep dataset.
+
+```{r distinct users}
+
+n_distinct(daily_activity$Id)
+n_distinct(sleep_day$Id)
+
+```
+
+How many observations are there in each dataframe?
+
+```{r observations}
+
+nrow(daily_activity)
+nrow(sleep_day)
+
+```
+
+
+# Step 4: Analyze
+
+From the observations, we noted that 
+
+1.    
+
+What are some quick summary statistics we'd want to know about each data frame?
+
+For the daily activity dataframe:
+
+```{r}
+
+daily_activity$ActivityDate <- mdy(daily_activity$ActivityDate)
+daily_activity$day_of_week <- wday(daily_activity$ActivityDate, label = T)
+
+daily_activity <- daily_activity |> 
+  rowwise() |> 
+  mutate(total_mins = sum(c_across(VeryActiveMinutes:SedentaryMinutes), na.rm = T)) 
+
+
+
+```
+
+
+```{r}
+
+daily_activity %>%  
+  select(TotalSteps,
+         TotalDistance,
+         SedentaryMinutes, 
+         total_mins,
+         Calories) %>%
+  summary()
+
+```
+
+### Interpreting statistical findings on daily activity data:
+
+On average, users logged 7,637 steps or 5.4km which is not adequate. As recommended by CDC, an adult female has to aim at least 10,000 steps or 8km per day to benefit from general health, weight loss and fitness improvement. 
+Source: article[Medical News Today](https://www.medicalnewstoday.com/articles/how-many-steps-should-you-take-a-day)
+
+Sedentary users are the majority logging on average 991 minutes or 20 hours making up 81% of total average minutes.
+
+Noting that average calories burned is 2,303 calories equivalent to 0.6 pound. Could not interpret into detail as calories burned depend on several factors such as the age, weight, daily tasks, exercise, hormones and daily calorie intake. 
+Source: [Health Line article](https://www.healthline.com/health/fitness-exercise/how-many-calories-do-i-burn-a-day#Burning-calories)
+
+
+
+
+For the sleep dataframe:
+
+```{r}
+
+sleep_day %>%  
+  select(TotalSleepRecords,
+  TotalMinutesAsleep,
+  TotalTimeInBed) %>%
+  summary()
+
+```
+
+### Interpreting statistical findings on sleep data:
+
+On average users slept 419 minutes or `r round(419/60, 1)` hours per night which is within the recommended range for adults 18 - 60yrs but outside the range for individuals less than 18 years according to the US Centers for Disease Control and Prevention (CDC). Information about the users ages was not provided in the data set.
+Source: [CDC: How Much Sleep Do I Need](https://www.cdc.gov/sleep/about_sleep/how_much_sleep.html)
+
+The data also showed that users were likely to spend and extra 39 mins in bed when not sleeping. 
+
+# Step 5: Share 
+
+### Plotting a few explorations
+
+What's the relationship between steps taken in a day and sedentary minutes? How could this help inform the customer segments that we can market to? E.g. position this more as a way to get started in walking more? Or to measure steps that you're already taking?
+
+```{r}
+
+daily_activity |> 
+  ggplot(aes(day_of_week)) +
+  geom_bar() + 
+  labs(
+    title = "Number of times users logged in app across the week"
+  )
+
+```
+
+Frequency of usage across the week
+
+In this histogram, we are looking at the frequency of FitBit app usage in terms of days of the week.
+
+We discovered that users prefer or remember (giving them the doubt of benefit that they forgotten) to track their activity on the app during midweek from Tuesday to Friday.
+
+Noting that the frequency dropped on Friday and continue on weekends and Monday.
+
+
+```{r}
+
+ggplot(data=daily_activity, aes(x=TotalSteps, y=SedentaryMinutes)) + 
+  geom_point() + 
+  labs(
+    title = "Relationship between Sedentary Minutes and Total Steps",
+    subtitle = "No observed corrlation between both variables", 
+    x = "Total Steps",
+    y = "Sedentary Minutes"
+  ) + 
+  geom_vline(xintercept = 7638, color = "red", linetype = "dotted", size = 1) + 
+  geom_hline(yintercept = 991, color = "red", linetype = "dotted", size = 1)
+
+```
+
+There is no observable correlation between sedentary minutes and total steps within the app. Does the app properly measure sedentary minutes? 
+
+What's the relationship between minutes asleep and time in bed? You might expect it to be almost completely linear - are there any unexpected trends?
+
+```{r}
+
+ggplot(data=sleep_day, aes(x=TotalMinutesAsleep, y=TotalTimeInBed)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = F) +
+  labs(
+    title = "Total Time in Bed versus Total Minutes Slept",
+    subtitle = "Observable strong relationship between variables", 
+    x = "Total Mins of Sleep",
+    y = "Total Time in Bed"
+  )
+
+```
+
+There is a strong relationship between the length of time the users stayed on bed and the time they slept. 
+
+```{r}
+
+wkday_sleep_time <- sleep_day |> 
+  mutate(SleepDay  = mdy_hms(SleepDay),
+         day_of_week = wday(SleepDay, label = T)) |> 
+  group_by(day_of_week) |> 
+  summarise(avg_sleep_time = mean(TotalMinutesAsleep), 
+            avg_time_in_bed = mean(TotalTimeInBed)
+  ) 
+
+wkday_sleep_time |> 
+  pivot_longer(cols = avg_sleep_time:avg_time_in_bed, 
+               names_to =  "variable",
+               values_to = "values") |> 
+  ggplot(aes(day_of_week, values)) + 
+  geom_col() + 
+  facet_wrap( ~variable)
+  
+```
+
+The sleep data from the sample set shows that the participants got the most average sleep time on Sundays, 7.5 hrs, (understandably, as most people typically want to get enough sleep before the work week starts) followed by Wednesdays (interestingly, since its mid work week)
+
+What could these trends tell you about how to help market this product? Or areas where you might want to explore further?
+
+Did the weekday affect length of sleep? 
+Does the month of year affect sleep quality? 
+Is there a correlation between activity level and quality of sleep?
+
+### Calories burnt per step 
+
+```{r}
+
+daily_activity |> 
+  ggplot(aes(TotalSteps, Calories, color = Calories)) +
+  geom_point() + 
+  scale_colour_viridis_c() + 
+  geom_vline(xintercept = 7637) +
+  geom_hline(yintercept = 2303) + 
+  geom_smooth(method = "lm", se = F) + 
+  labs(
+    title = "Calories burned for every step taken",
+    y = "Calories burned",
+    x = "Steps Taken"
+  )
+
+```
+
+Calories burned for every step taken
+
+From the scatter plot, we discovered that:
+
+It is a positive correlation.
+
+We observed that intensity of calories burned increase when users are at the range of > 0 to 15,000 steps with calories burn rate cooling down from 15,000 steps onwards.
+
+Noted a few outliers:
+
+Zero steps with zero to minimal calories burned.
+1 observation of > 35,000 steps with < 3,000 calories burned.
+Deduced that outliers could be due to natural variation of data, change in user's usage or errors in data collection (ie. miscalculations, data contamination or human error).
+
+
+```{r}
+
+daily_activity |> 
+  ggplot(aes(day_of_week, Calories)) + 
+  geom_col() + 
+  scale_y_continuous(labels = scales::comma_format()) + 
+  labs(
+    x = "",
+    title = "Total Calories Burnt per weekday", 
+    subtitle = "Participants burnt most of their calories during mid-week"
+  )
+
+```
+
+Users burnt the most calories in the midweek (Tuesday - Thursday) compared to other days of the week. 
+
+### Merging these two datasets together
+
+```{r}
+
+combined_data <- merge(sleep_day, daily_activity, by="Id")
+
+nrow(combined_data)
+
+daily_activity|> 
+  inner_join(sleep_day)
+
+daily_activity |> 
+  left_join(sleep_day)
+
+combined_data_full <- daily_activity |> 
+  full_join(sleep_day) 
+
+```
+
+Take a look at how many participants are in this data set.
+
+```{r}
+
+n_distinct(combined_data$Id)
+n_distinct(combined_data_full$Id)
+
+```
+
+Note that there were more participant Ids in the daily activity dataset that have been filtered out using merge. Consider using 'outer_join' to keep those in the dataset. 
+
+Now you can explore some different relationships between activity and sleep as well. For example, do you think participants who sleep more also take more steps or fewer steps per day? Is there a relationship at all? How could these answers help inform the marketing strategy of how you position this new product?
+
+This is just one example of how to get started with this data - there are many other files and questions to explore as well!
+
+
+```{r}
+
+combined_data |> 
+  ggplot(aes(TotalSteps, TotalMinutesAsleep)) + 
+  geom_point(alpha = 0.5) + 
+  labs(
+    title = "Relationship between Total Sleep Time and Total Steps taken",
+    subtitle = "No correlation between these two variables",
+    y = "Total Minutes Slept",
+    x = "Total Steps"
+  )
+
+
+
+```
+
+There is no correlation between total time the user slept and the total steps taken. So sleeping longer does not translate to increased number of steps. 
+
+
+
+```{r}
+
+minutes_logged <- daily_activity |> 
+  as_tibble() |> 
+  select(contains("minutes")) |> 
+  map_dbl(sum)  
+ 
+
+minutes_logged |> 
+  as_tibble() |> 
+  mutate(total = value/sum(value)) |> 
+  mutate(activity = c('Very Active Minutes',  
+                      'Fairly Active Minutes', 
+                      'Lightly Active Minutes',     
+                      'Sedentary Minutes')) |> 
+  
+  ggplot(aes(total, fct_reorder(activity,total,.desc = F))) + 
+  geom_col() +
+  scale_x_continuous(labels = scales::percent_format())
+
+
+```
+
+Percentage of Activity in Minutes
+
+As seen from the bar plot,
+
+Sedentary minutes takes the biggest slice at 81.3%.
+
+This indicates that users are using the FitBit app to log daily activities such as daily commute, inactive movements (moving from one spot to another) or running errands.
+
+App is rarely being used to track fitness (ie. running) as per the minor percentage of fairly active activity (1.1%) and very active activity (1.7%). This is highly discouraging as FitBit app was developed to encourage fitness.
+
